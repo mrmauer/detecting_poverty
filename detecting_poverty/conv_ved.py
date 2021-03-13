@@ -37,12 +37,12 @@ class CVEDNet(nn.Module):
             in_channels=init_channels*2, out_channels=init_channels*4, kernel_size=kernel_size, 
             stride=2, padding=1
         )
-        # H = (7 + 2 - 4)/2 + 1 = ceil(3.5) = 4...
+        # H = (7 + 2 - 4)/2 + 1 = floor(3.5) = 3
         self.enc4 = nn.Conv2d(
             in_channels=init_channels*4, out_channels=64, kernel_size=kernel_size-1, 
             stride=2, padding=0
         )
-        # H = (4 + 0 - 4)/2 + 1 = 1
+        # H = (3 + 0 - 3)/2 + 1 = 1
         # fully connected layers for learning representations
         self.fc1 = nn.Linear(64, 128)
         self.fc_mu = nn.Linear(128, latent_dim)
