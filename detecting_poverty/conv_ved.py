@@ -15,50 +15,66 @@ from data_loaders import MNIST
 # the autoencoder network
 class CVEDNet(nn.Module):
     def __init__(
-            self, latent_dim=64, init_channels=8, kernel_size=3, 
+            self, latent_dim=64, init_channels=8, kernel_size=4, 
             image_in_channels=1, image_out_channels=1
         ):
         super(CVEDNet, self).__init__()
  
         # encoder
+        # H = ceil((H + 2*padding - kernel)/stride + 1)
+        # H = 28
         self.enc1 = nn.Conv2d(
             in_channels=image_in_channels, out_channels=init_channels, kernel_size=kernel_size, 
             stride=2, padding=1
         )
+        # H = (28 + 2 - 4)/2 + 1 = 14
         self.enc2 = nn.Conv2d(
             in_channels=init_channels, out_channels=init_channels*2, kernel_size=kernel_size, 
             stride=2, padding=1
         )
+        # H = (14 + 2 - 4)/2 + 1 = 7
         self.enc3 = nn.Conv2d(
             in_channels=init_channels*2, out_channels=init_channels*4, kernel_size=kernel_size, 
             stride=2, padding=1
         )
+        # H = (7 + 2 - 4)/2 + 1 = ceil(3.5) = 4...
         self.enc4 = nn.Conv2d(
-            in_channels=init_channels*4, out_channels=64, kernel_size=kernel_size, 
+            in_channels=init_channels*4, out_channels=64, kernel_size=kernel_size-1, 
             stride=2, padding=0
         )
+        # H = (4 + 0 - 4)/2 + 1 = 1
         # fully connected layers for learning representations
         self.fc1 = nn.Linear(64, 128)
         self.fc_mu = nn.Linear(128, latent_dim)
         self.fc_log_var = nn.Linear(128, latent_dim)
         self.fc2 = nn.Linear(latent_dim, 64)
         # decoder 
+        # output dimensions of each ConvTranspose2d:
+        #     H = (H - 1)*stride + kernel_size - 2*padding
         self.dec1 = nn.ConvTranspose2d(
             in_channels=64, out_channels=init_channels*8, kernel_size=kernel_size, 
             stride=1, padding=0
         )
+        # H = 0 + 3 - 0 = 3
+        # H = 0 + 4 - 0 = 4
         self.dec2 = nn.ConvTranspose2d(
             in_channels=init_channels*8, out_channels=init_channels*4, kernel_size=kernel_size, 
             stride=2, padding=1
         )
+        # H = (2)2 + 3 - 2 = 5
+        # H = (3)2 + 4 - 2 = 8
         self.dec3 = nn.ConvTranspose2d(
             in_channels=init_channels*4, out_channels=init_channels*2, kernel_size=kernel_size, 
             stride=2, padding=1
         )
+        # H = (4)2 + 3 - 2 = 9
+        # H = (7)2 + 2 = 16
         self.dec4 = nn.ConvTranspose2d(
             in_channels=init_channels*2, out_channels=image_out_channels, kernel_size=kernel_size, 
-            stride=2, padding=1
+            stride=2, padding=3
         )
+        # H = (8)2 + 3 - 2 = 17
+        # H = (15)2 + 4 - 2(padding=3) = 28
 
     def reparameterize(self, mu, log_var):
         """
