@@ -36,9 +36,9 @@ class LandsatViirs(tud.Dataset):
     and VIIRS images for matching land areas. 
     """
     def __init__(
-            self, coords, landsat_transform, viirs_transform
+            self, df, landsat_transform, viirs_transform
         ):
-        self.coords = coords
+        self.df = df[['image_name', 'image_lat', 'image_lon']]
         self.landsat_transform = landsat_transform
         self.viirs_transform = viirs_transform
 
@@ -46,10 +46,10 @@ class LandsatViirs(tud.Dataset):
         return len(self.coords)
 
     def __getitem__(self, idx):
-        coord = self.coords[idx]
+        lat, lon = self.df.loc[idx, ['image_lat', 'image_lon']]
         if self.transform:
-            landsat = self.landsat_transform(coord)
-            viirs = self.viirs_transform(coord)
+            landsat = self.landsat_transform(self.df.loc[idx, 'image_name'])
+            viirs = self.viirs_transform((lat, lon))
         return landsat, viirs
 
 class LandsatTransform:
@@ -58,9 +58,9 @@ class LandsatTransform:
     Landsat image formatted as a 3D Tensor [bands, height, width].
     """
     def __init__(self, base_path):
-        self.path = base_path
+        pass
 
-    def __call__(self, coord):
+    def __call__(self, image_name):
         pass
 
 class ViirsTransform:
