@@ -21,28 +21,28 @@ class CVEDNet(nn.Module):
         super(CVEDNet, self).__init__()
  
         # encoder
-        # H = ceil((H + 2*padding - kernel)/stride + 1)
-        # H = 28
+        # H = floor((H + 2*padding - dilation*(kernel-1) - 1)/stride + 1)
+        # H = 256
         self.enc1 = nn.Conv2d(
             in_channels=image_in_channels, out_channels=init_channels, kernel_size=kernel_size, 
-            stride=2, padding=1
+            stride=4, padding=1, dilation=2
         )
-        # H = (28 + 2 - 4)/2 + 1 = 14
+        # H = (256 + 2 - (2*3) - 1)/4 + 1 = 62
         self.enc2 = nn.Conv2d(
             in_channels=init_channels, out_channels=init_channels*2, kernel_size=kernel_size, 
-            stride=2, padding=1
+            stride=3, padding=1
         )
-        # H = (14 + 2 - 4)/2 + 1 = 7
+        # H = (62 + 2 - 4)/3 + 1 = 21
         self.enc3 = nn.Conv2d(
             in_channels=init_channels*2, out_channels=init_channels*4, kernel_size=kernel_size, 
-            stride=2, padding=1
+            stride=3, padding=1
         )
-        # H = (7 + 2 - 4)/2 + 1 = floor(3.5) = 3
+        # H = (21 + 2 - 4)/3 + 1 = floor(3.5) = 7
         self.enc4 = nn.Conv2d(
-            in_channels=init_channels*4, out_channels=64, kernel_size=kernel_size-1, 
+            in_channels=init_channels*4, out_channels=64, kernel_size=7, 
             stride=2, padding=0
         )
-        # H = (3 + 0 - 3)/2 + 1 = 1
+        # H = (7 + 0 - 7)/2 + 1 = 1
         # fully connected layers for learning representations
         self.fc1 = nn.Linear(64, 128)
         self.fc_mu = nn.Linear(128, latent_dim)

@@ -3,6 +3,9 @@ import torch.utils.data as tud
 import numpy as np
 import geoio
 from utils import create_space
+import os
+from PIL import Image
+from torchvision.transforms.functional import pil_to_tensor
 
 
 class ToTensor(object):
@@ -47,8 +50,9 @@ class LandsatViirs(tud.Dataset):
 
     def __getitem__(self, idx):
         lat, lon = self.df.loc[idx, ['image_lat', 'image_lon']]
+        img, country = self.df.loc[idx, ['image_name', 'country']]
         if self.transform:
-            landsat = self.landsat_transform(self.df.loc[idx, 'image_name'])
+            landsat = self.landsat_transform((img, country))
             viirs = self.viirs_transform((lat, lon))
         return landsat, viirs
 
@@ -57,11 +61,21 @@ class LandsatTransform:
     A callable object that, given a pair of coordinates, returns a the 
     Landsat image formatted as a 3D Tensor [bands, height, width].
     """
-    def __init__(self, base_path):
-        pass
+    def __init__(self, base_path, width=256, height=256):
+        self.base_path = base_path
+        self.width = width
+        self.height = height
 
-    def __call__(self, image_name):
-        pass
+    def __call__(self, image_name, country='ng'):
+        path = '/'.join([self.base_path, country, image_name])
+        im = Image.open(path) # use pillow to open a file
+        img = img.resize((self.width, self.height)) # resize the file to 256x256
+        # img = img.convert('RGB') #convert image to RGB channel
+        # img = np.asarray(img).transpose(-1, 0, 1) 
+        # ^^^ we have to change the dimensions from width x height x channel 
+        # (WHC) to channel x width x height (CWH)
+        # img = torch.from_numpy(np.asarray(img)/255)
+        return pil_to_tensor(img)
 
 class ViirsTransform:
     """
