@@ -4,10 +4,8 @@
 import torch.utils.data as tud
 from torch import optim, nn
 from torch.nn import functional as F
-from matplotlib import pyplot as plt
 import numpy as np
 import torch
-from sklearn import decomposition
 from numpy.random import permutation as rpm
 from data_loaders import MNIST
 
@@ -124,8 +122,8 @@ class ConvVED(object):
     kv: float, weight on variance term inside -KL(q(z|x)||p(z)) (default: 1.0)
     """
     def __init__(
-            self, n_components, lr=1.0e-3, batch_size=16, data_loader=MNIST,
-            cuda=True, path="vae.pth", kkl=1.0, kv=1.0, init_channels=8, 
+            self, n_components, lr=1.0e-3, batch_size=16,
+            cuda=True, path="conv_ved.pth", kkl=1.0, kv=1.0, init_channels=8, 
             kernel_size=4, image_in_channels=1, image_out_channels=1
         ):
         self.model = CVEDNet(
@@ -142,7 +140,6 @@ class ConvVED(object):
         self.path = path
         self.kkl = kkl
         self.kv = kv
-        self.data_loader = data_loader
         self.initialize()
 
     def fit(self, Xr, Xd, epochs):
@@ -150,15 +147,15 @@ class ConvVED(object):
         Parameters
         ----------
         :in:
-        Xr: 2d array of shape (n_data, n_dim). Training data
-        Xd: 2d array of shape (n_data, n_dim). Dev data, used for early stopping
+        Xr: dataset object that inherits tud.Dataset, TRAINING
+        Xd: dataset object that inherits tud.Dataset, DEV
         epochs: int, number of training epochs
         """
         train_loader = tud.DataLoader(
-            self.data_loader(Xr),
+            Xr,
             batch_size=self.batch_size, shuffle=True)
         dev_loader = tud.DataLoader(
-            self.data_loader(Xd),
+            Xd,
             batch_size=self.batch_size, shuffle=True)
         optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
         best_dev_loss = np.inf
@@ -185,7 +182,7 @@ class ConvVED(object):
         except Exception as err:
             print("Error loading '%s'\n[ERROR]: %s\nUsing initial model!" % (self.path, err))
         test_loader = tud.DataLoader(
-            self.data_loader(X), batch_size=self.batch_size, shuffle=False)
+            X, batch_size=self.batch_size, shuffle=False)
         _, Z = self._evaluate(test_loader)
         return Z
 

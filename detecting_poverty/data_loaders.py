@@ -44,14 +44,16 @@ class LandsatViirs(tud.Dataset):
         self.df = df
         self.landsat_transform = landsat_transform
         self.viirs_transform = viirs_transform
+        self.idxs = df.index.to_list()
 
     def __len__(self):
         return len(self.df)
 
     def __getitem__(self, idx):
+        idx = self.idxs[idx]
         cols = ['image_lat', 'image_lon', 'image_name', 'country']
         lat, lon, img, country = self.df.loc[idx, cols]
-        landsat = self.landsat_transform((img, country))
+        landsat = self.landsat_transform(img, country)
         viirs = self.viirs_transform((lat, lon), country)
         return landsat, viirs
 
@@ -66,8 +68,8 @@ class LandsatTransform:
         self.height = height
 
     def __call__(self, image_name, country='ng'):
-        path = '/'.join([self.base_path, country, image_name])
-        im = Image.open(path) # use pillow to open a file
+        path = '/'.join([self.base_path, country, 'images copy', image_name])
+        img = Image.open(path) # use pillow to open a file
         img = img.resize((self.width, self.height)) # resize the file to 256x256
         # img = img.convert('RGB') #convert image to RGB channel
         # img = np.asarray(img).transpose(-1, 0, 1) 
@@ -88,12 +90,16 @@ class ViirsTransform:
         """
         self.tifs = {
             'ng' : tifs[1],
-            'et' : tifs[1],
+            'eth' : tifs[1],
             'mw' : tifs[0]
         }
-        self.arrays = {}
-        for country in self.tifs:
-            self.arrays[country] = self.tifs[country].get_data()
+        tif0_data = tifs[0].get_data()
+        tif1_data = tifs[1].get_data()
+        self.arrays = {
+            'ng' : tif1_data,
+            'eth' : tif1_data,
+            'mw' : tif0_data
+        }
 
     def __call__(self, coord, country):
         """
@@ -112,7 +118,7 @@ class ViirsTransform:
         #     return False, None
 
         array = self.arrays[country][ymaxPixel-21:ymaxPixel,xminPixel:xminPixel+21]
-        return torch.tensor(array.reshape((-1,21,21))
+        return torch.tensor(array.reshape((-1,21,21)))
 
 
 
