@@ -5,7 +5,7 @@ import geoio
 from utils import create_space
 import os
 from PIL import Image
-from torchvision.transforms.functional import pil_to_tensor
+import torchvision.transforms.functional as TF
 
 
 class ToTensor(object):
@@ -75,7 +75,7 @@ class LandsatTransform:
         # ^^^ we have to change the dimensions from width x height x channel 
         # (WHC) to channel x width x height (CWH)
         # img = torch.from_numpy(np.asarray(img)/255)
-        return pil_to_tensor(img)
+        return TF.pil_to_tensor(img)
 
 class ViirsTransform:
     """
@@ -107,7 +107,7 @@ class ViirsTransform:
             return False, None
 
         array = self.data[ymaxPixel-21:ymaxPixel,xminPixel:xminPixel+21]
-        return True, torch.tensor(array)
+        return True, torch.tensor(array.reshape((-1,21,21))
 
 
 
