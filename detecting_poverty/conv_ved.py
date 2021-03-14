@@ -52,27 +52,26 @@ class CVEDNet(nn.Module):
         # output dimensions of each ConvTranspose2d:
         #     H = (H - 1)*stride + kernel_size - 2*padding
         self.dec1 = nn.ConvTranspose2d(
-            in_channels=64, out_channels=init_channels*8, kernel_size=kernel_size, 
+            in_channels=64, out_channels=init_channels*4, kernel_size=kernel_size, 
             stride=1, padding=0
         )
         # H = 0 + 3 - 0 = 3
         # H = 0 + 4 - 0 = 4
         self.dec2 = nn.ConvTranspose2d(
-            in_channels=init_channels*8, out_channels=init_channels*4, kernel_size=kernel_size, 
-            stride=2, padding=1
-        )
-        # H = (2)2 + 3 - 2 = 5
-        # H = (3)2 + 4 - 2 = 8
-        self.dec3 = nn.ConvTranspose2d(
             in_channels=init_channels*4, out_channels=init_channels*2, kernel_size=kernel_size, 
             stride=2, padding=1
         )
-        # H = (4)2 + 3 - 2 = 9
-        # H = (7)2 + 2 = 16
-        self.dec4 = nn.ConvTranspose2d(
-            in_channels=init_channels*2, out_channels=image_out_channels, kernel_size=kernel_size, 
-            stride=2, padding=3
+        # H = (2)2 + 3 - 2 = 5
+        # H = (3)2 + 4 = 10
+        self.dec3 = nn.ConvTranspose2d(
+            in_channels=init_channels*2, out_channels=image_out_channels, kernel_size=kernel_size+1, 
+            stride=2, padding=1
         )
+        # H = (9)2 + 5 - 2 = 21 <--- Final Dim for Viirs 21x21
+        # self.dec4 = nn.ConvTranspose2d(
+        #     in_channels=init_channels*2, out_channels=image_out_channels, kernel_size=kernel_size, 
+        #     stride=2, padding=3
+        # )
         # H = (8)2 + 3 - 2 = 17
         # H = (15)2 + 4 - 2(padding=3) = 28
 
