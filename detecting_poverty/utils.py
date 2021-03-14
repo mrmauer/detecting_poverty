@@ -1,7 +1,60 @@
 import torch
 import numpy as np
 from PIL import Image
+import random
 
+class LatLonBBDraw():
+    '''
+    A callable class to provide random samples of fixed size bounding
+    boxes from within a larger (super) bounding box.
+    '''
+    def __init__(self, lat_range, lon_range, dimension):
+        """
+        Create parameters for sampling function.
+
+        Inputs:
+            lat_range (tuple of two floats): north and south boundaries
+                of super bounding box.
+            lon_range (tuple of two floats): west and east boundaries.
+            dimension (float): width (and height) in degrees of desired bounding
+                box sub samples.
+        """
+        self.lat_range = lat_range
+        self.lon_range = lon_range
+        self.dimension = dimension
+    def __call__(self):
+        """
+        Returns:
+            A length 4 tuple of floats: (west, south, east, north)
+        """
+        lat = random.uniform(self.lat_range[0], self.lat_range[1])
+        lon = random.uniform(self.lon_range[0], self.lon_range[1])
+        return (lon, lat, lon+self.dimension, lat+self.dimension)
+
+class LatLonDraw():
+    '''
+    A callable class to provide random samples of lat/lon pairs 
+    from within a bounding box.
+    '''
+    def __init__(self, lat_range, lon_range):
+        """
+        Create parameters for sampling function.
+
+        Inputs:
+            lat_range (tuple of two floats): north and south boundaries
+                of super bounding box.
+            lon_range (tuple of two floats): west and east boundaries.
+        """
+        self.lat_range = lat_range
+        self.lon_range = lon_range
+    def __call__(self):
+        """
+        Returns:
+            A length 2 tuple of floats: (lat, lon)
+        """
+        lat = random.uniform(self.lat_range[0], self.lat_range[1])
+        lon = random.uniform(self.lon_range[0], self.lon_range[1])
+        return (lon, lat)
 
 def resize(digits, row_size, column_size):
     """
