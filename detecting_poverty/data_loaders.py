@@ -41,19 +41,18 @@ class LandsatViirs(tud.Dataset):
     def __init__(
             self, df, landsat_transform, viirs_transform
         ):
-        self.df = df[['image_name', 'image_lat', 'image_lon']]
+        self.df = df
         self.landsat_transform = landsat_transform
         self.viirs_transform = viirs_transform
 
     def __len__(self):
-        return len(self.coords)
+        return len(self.df)
 
     def __getitem__(self, idx):
-        lat, lon = self.df.loc[idx, ['image_lat', 'image_lon']]
-        img, country = self.df.loc[idx, ['image_name', 'country']]
-        if self.transform:
-            landsat = self.landsat_transform((img, country))
-            viirs = self.viirs_transform((lat, lon))
+        cols = ['image_lat', 'image_lon', 'image_name', 'country']
+        lat, lon, img, country = self.df.loc[idx, cols]
+        landsat = self.landsat_transform((img, country))
+        viirs = self.viirs_transform((lat, lon), country)
         return landsat, viirs
 
 class LandsatTransform:
@@ -82,15 +81,21 @@ class ViirsTransform:
     A callable object that, given a pair of coordinates, returns a the 
     VIIIRS Day/Night Band image formatted as a 3D Tensor [bands, height, width].
     """
-    def __init__(self, tif):
+    def __init__(self, tifs):
         """
         Inputs:
             tif (geoio.GeoImage)
         """
-        self.tif = tif
-        self.data = tig.get_data()
+        self.tifs = {
+            'ng' : tifs[1],
+            'et' : tifs[1],
+            'mw' : tifs[0]
+        }
+        self.arrays = {}
+        for country in self.tifs:
+            self.arrays[country] = self.tifs[country].get_data()
 
-    def __call__(self, coord):
+    def __call__(self, coord, country):
         """
         Input:
             coord (tuple of 2 floats)
@@ -99,15 +104,15 @@ class ViirsTransform:
         """
         min_lat, min_lon, max_lat, max_lon = create_space(
             coord[0], coord[1])
-        xminPixel, ymaxPixel = self.tif.proj_to_raster(min_lon, min_lat)
+        xminPixel, ymaxPixel = self.tifs[country].proj_to_raster(min_lon, min_lat)
         # xmaxPixel, yminPixel = self.tif.proj_to_raster(max_lon, max_lat)
-        if (xminPixel<0) or (ymaxPixel-21<0) or \
-                (ymaxPixel>self.data.shape[0]) or \
-                (xminPixel+21>self.data.shape[1]):
-            return False, None
+        # if (xminPixel<0) or (ymaxPixel-21<0) or \
+        #         (ymaxPixel>self.data.shape[0]) or \
+        #         (xminPixel+21>self.data.shape[1]):
+        #     return False, None
 
-        array = self.data[ymaxPixel-21:ymaxPixel,xminPixel:xminPixel+21]
-        return True, torch.tensor(array.reshape((-1,21,21))
+        array = self.arrays[country][ymaxPixel-21:ymaxPixel,xminPixel:xminPixel+21]
+        return torch.tensor(array.reshape((-1,21,21))
 
 
 
