@@ -8,6 +8,7 @@ import numpy as np
 import torch
 from numpy.random import permutation as rpm
 from data_loaders import MNIST
+from elastic_net import elastic_net
 
 # the ConvVAE network for 256x256 Landsat images
 class LandsatCvaeNet(nn.Module):
@@ -331,23 +332,22 @@ class ConvVED(object):
         self.model.apply(_init_weights)
         return
 
-def conv_ved_emb(train_subset, dev_subset, train_data, dev_data, test_data, 
-            n_components, lr=1.0e-3, batch_size=128,
-            epochs=15, kkl=1.0, kv=1.0, path='ConvVED.pt', 
+def conved_for_prediction(train_data, dev_data, train_target, dev_target,
+            n_components, lr=1.0e-3, batch_size=12,
+            epochs=10, kkl=1.0, kv=1.0, path='ConvVED.pt', verbose=False
         ):
     """
     Train and extract feature with Convolutional VAE
     ------
     Input
-        train_subset, dev_subset: 2d array of shape (n_data, n_dim), VAE 
-            training and development data
+        train_subset, dev_subset: tud.Dataset objects for loading data.
         train_data, dev_data, test_data: 2d array of shape (n_data, n_dim), 
             training/dev/test set of the dataset, where trained VAE will be 
             used to extract features
         n_components: int, feature dimension
         lr: float, learning rate (default: 0.001)
-        batch_size: int, batch size to train VAE (default: 128)
-        epochs: int, training epochs (default: 20)
+        batch_size: int, batch size to train VAE (default: 12)
+        epochs: int, training epochs (default: 10)
         kkl: float, weight (lambda_KL) on -KL(q(z|x)||p(z)) (default: 1.0)
         kv: float, weight (lambda_var) on variance term inside -KL(q(z|x)||p(z)) 
             (default: 1.0)
@@ -357,7 +357,12 @@ def conv_ved_emb(train_subset, dev_subset, train_data, dev_data, test_data,
         train_features, dev_features, test_features: 2d array of shape 
             (n_data, n_dim), extracted features of the training/dev/test set
     """
-    print("Using Convolutional VED")
+    print("\n========================\nUsing Convolutional VED\n"+
+          f"{n_components} Components\n" +
+          f"{lr} Learning Rate\n" +
+          f"{kkl} KL Divergence Regularizer\n" +
+          f"{kv} Latent Variance Regularizer\n" +
+          f"{batch_size} Batch Size\n")
     model = ConvVED(
         n_components=n_components, 
         lr=lr, 
@@ -366,8 +371,15 @@ def conv_ved_emb(train_subset, dev_subset, train_data, dev_data, test_data,
         kv=kv, 
         path=path
     )
-    model.fit(train_subset, Xd=dev_subset, epochs=epochs)
+    model.fit(train_data, Xd=dev_data, epochs=epochs)
     train_features = model.transform(train_data)
     dev_features = model.transform(dev_data)
-    test_features = model.transform(test_data)
-    return train_features, dev_features, test_features
+    score, enet = elastic_net(
+        train_features, 
+        dev_features, 
+        train_target, 
+        dev_target, 
+        verbose=verbose
+    )
+    return score, model, enet
+
