@@ -16,7 +16,7 @@ class LandsatCvaeNet(nn.Module):
             self, latent_dim=64, init_channels=8, kernel_size=4, 
             image_in_channels=3, image_out_channels=3
         ):
-        super(Landsat2ViirsNet, self).__init__()
+        super(LandsatCvaeNet, self).__init__()
  
         # encoder
         # H = floor((H + 2*padding - dilation*(kernel-1) - 1)/stride + 1)
@@ -109,7 +109,7 @@ class LandsatCvaeNet(nn.Module):
 class Landsat2ViirsNet(nn.Module):
     def __init__(
             self, latent_dim=64, init_channels=8, kernel_size=4, 
-            image_in_channels=1, image_out_channels=1
+            image_in_channels=3, image_out_channels=1
         ):
         super(Landsat2ViirsNet, self).__init__()
  
@@ -364,7 +364,9 @@ def conved_for_prediction(train_data, dev_data, train_target, dev_target,
           f"{kv} Latent Variance Regularizer\n" +
           f"{batch_size} Batch Size\n")
     model = ConvVED(
-        n_components=n_components, 
+        n_components=n_components,
+        net=Landsat2ViirsNet,
+        image_in_channels=3,
         lr=lr, 
         batch_size=batch_size, 
         kkl=kkl, 
