@@ -33,9 +33,28 @@ class MNIST(tud.Dataset):
             x = self.transform(x)
         return (x, x)
 
+class Landsat(tud.Dataset):
+    """
+    A data loader that samples pairs of Landsat images. 
+    """
+    def __init__(self, df, landsat_transform):
+        self.df = df
+        self.landsat_transform = landsat_transform
+        self.idxs = df.index.to_list()
+
+    def __len__(self):
+        return len(self.df)
+
+    def __getitem__(self, idx):
+        idx = self.idxs[idx]
+        img, country = self.df.loc[idx, ['image_name', 'country']]
+        landsat = self.landsat_transform(img, country)
+        return landsat, landsat
+
+
 class LandsatViirs(tud.Dataset):
     """
-    A data loader that uses Google Earth Engine to sample pairs of Landsat
+    A data loader that samples pairs of Landsat
     and VIIRS images for matching land areas. 
     """
     def __init__(
@@ -68,15 +87,10 @@ class LandsatTransform:
         self.height = height
 
     def __call__(self, image_name, country='ng'):
-        path = '/'.join([self.base_path, country, 'images copy', image_name])
-        img = Image.open(path) # use pillow to open a file
-        img = img.resize((self.width, self.height)) # resize the file to 256x256
-        # img = img.convert('RGB') #convert image to RGB channel
-        # img = np.asarray(img).transpose(-1, 0, 1) 
-        # ^^^ we have to change the dimensions from width x height x channel 
-        # (WHC) to channel x width x height (CWH)
-        # img = torch.from_numpy(np.asarray(img)/255)
-        return TF.pil_to_tensor(img)
+        path = '/'.join([self.base_path, country, image_name])
+        img = Image.open(path)
+        img = img.resize((self.width, self.height))
+        return TF.pil_to_tensor(img.convert('RGB')).type(torch.FloatTensor)
 
 class ViirsTransform:
     """
@@ -116,9 +130,9 @@ class ViirsTransform:
         #         (ymaxPixel>self.data.shape[0]) or \
         #         (xminPixel+21>self.data.shape[1]):
         #     return False, None
-
-        array = self.arrays[country][ymaxPixel-21:ymaxPixel,xminPixel:xminPixel+21]
-        return torch.tensor(array.reshape((-1,21,21)))
+        xminPixel, ymaxPixel = itn(xminPixel), int(ymaxPixel)
+        array = self.arrays[country][:, ymaxPixel-21:ymaxPixel, xminPixel:xminPixel+21]
+        return torch.tensor(array.reshape((-1,21,21))).type(torch.FloatTensor)
 
 
 

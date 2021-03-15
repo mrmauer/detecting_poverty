@@ -9,14 +9,13 @@ import torch
 from numpy.random import permutation as rpm
 from data_loaders import MNIST
 
-
-# the autoencoder network
-class CVEDNet(nn.Module):
+# the ConvVAE network for 256x256 Landsat images
+class LandsatCvaeNet(nn.Module):
     def __init__(
             self, latent_dim=64, init_channels=8, kernel_size=4, 
-            image_in_channels=1, image_out_channels=1
+            image_in_channels=3, image_out_channels=3
         ):
-        super(CVEDNet, self).__init__()
+        super(Landsat2ViirsNet, self).__init__()
  
         # encoder
         # H = floor((H + 2*padding - dilation*(kernel-1) - 1)/stride + 1)
@@ -47,31 +46,29 @@ class CVEDNet(nn.Module):
         self.fc_log_var = nn.Linear(128, latent_dim)
         self.fc2 = nn.Linear(latent_dim, 64)
         # decoder 
-        # output dimensions of each ConvTranspose2d:
-        #     H = (H - 1)*stride + kernel_size - 2*padding
+        # output dimensions of each ConvTranspose2d: ---> 256x256
+        # H = (H − 1)×stride[0] − 2×padding[0] + dilation[0]×(kernel_size[0]−1) + output_padding[0] + 1
         self.dec1 = nn.ConvTranspose2d(
-            in_channels=64, out_channels=init_channels*4, kernel_size=kernel_size, 
+            in_channels=64, out_channels=init_channels*4, kernel_size=7, 
             stride=1, padding=0
         )
-        # H = 0 + 3 - 0 = 3
-        # H = 0 + 4 - 0 = 4
+        # H = (1-1)*1 - 0 + 6 + 1 = 8
         self.dec2 = nn.ConvTranspose2d(
             in_channels=init_channels*4, out_channels=init_channels*2, kernel_size=kernel_size, 
-            stride=2, padding=1
+            stride=2, padding=0
         )
-        # H = (2)2 + 3 - 2 = 5
-        # H = (3)2 + 4 = 10
+        # H = (8-1)*2 + 3 + 1 = 18
         self.dec3 = nn.ConvTranspose2d(
             in_channels=init_channels*2, out_channels=image_out_channels, kernel_size=kernel_size+1, 
-            stride=2, padding=1
+            stride=3, padding=0, dilation=2, output_padding=3
         )
-        # H = (9)2 + 5 - 2 = 21 <--- Final Dim for Viirs 21x21
-        # self.dec4 = nn.ConvTranspose2d(
-        #     in_channels=init_channels*2, out_channels=image_out_channels, kernel_size=kernel_size, 
-        #     stride=2, padding=3
-        # )
-        # H = (8)2 + 3 - 2 = 17
-        # H = (15)2 + 4 - 2(padding=3) = 28
+        # H = (18-1)*3 + 4*2 + 1 + 2 = 62
+        # 
+        self.dec4 = nn.ConvTranspose2d(
+            in_channels=init_channels*2, out_channels=image_out_channels, kernel_size=kernel_size, 
+            stride=4, padding=1, dilation=3, output_padding=1
+        )
+        # H = (62-1)*4 + 4*3 + 1 + 1 - 2 = 256
 
     def reparameterize(self, mu, log_var):
         """
@@ -103,8 +100,98 @@ class CVEDNet(nn.Module):
         # decoding
         x = F.leaky_relu(self.dec1(z))
         x = F.leaky_relu(self.dec2(x))
-        x = F.leaky_relu(self.dec3(x))
-        reconstruction = torch.sigmoid(self.dec4(x))
+        # x = F.leaky_relu(self.dec3(x))
+        reconstruction = torch.sigmoid(self.dec3(x))
+        return reconstruction, mu, log_var
+
+# the encoder-decoder network
+class Landsat2ViirsNet(nn.Module):
+    def __init__(
+            self, latent_dim=64, init_channels=8, kernel_size=4, 
+            image_in_channels=1, image_out_channels=1
+        ):
+        super(Landsat2ViirsNet, self).__init__()
+ 
+        # encoder
+        # H = floor((H + 2*padding - dilation*(kernel-1) - 1)/stride + 1)
+        # H = 256
+        self.enc1 = nn.Conv2d(
+            in_channels=image_in_channels, out_channels=init_channels, kernel_size=kernel_size, 
+            stride=4, padding=1, dilation=2
+        )
+        # H = (256 + 2 - (2*3) - 1)/4 + 1 = 62
+        self.enc2 = nn.Conv2d(
+            in_channels=init_channels, out_channels=init_channels*2, kernel_size=kernel_size, 
+            stride=3, padding=1
+        )
+        # H = (62 + 2 - 4)/3 + 1 = 21
+        self.enc3 = nn.Conv2d(
+            in_channels=init_channels*2, out_channels=init_channels*4, kernel_size=kernel_size, 
+            stride=3, padding=1
+        )
+        # H = (21 + 2 - 4)/3 + 1 = floor(3.5) = 7
+        self.enc4 = nn.Conv2d(
+            in_channels=init_channels*4, out_channels=64, kernel_size=7, 
+            stride=2, padding=0
+        )
+        # H = (7 + 0 - 7)/2 + 1 = 1
+        # fully connected layers for learning representations
+        self.fc1 = nn.Linear(64, 128)
+        self.fc_mu = nn.Linear(128, latent_dim)
+        self.fc_log_var = nn.Linear(128, latent_dim)
+        self.fc2 = nn.Linear(latent_dim, 64)
+        # decoder 
+        # output dimensions of each ConvTranspose2d:
+        # H = (H − 1)×stride[0] − 2×padding[0] + dilation[0]×(kernel_size[0]−1) + output_padding[0] + 1
+        #     H = (H - 1)*stride + kernel_size - 2*padding
+        self.dec1 = nn.ConvTranspose2d(
+            in_channels=64, out_channels=init_channels*4, kernel_size=kernel_size, 
+            stride=1, padding=0
+        )
+        # H = (1-1)*1 - 0 + 3 + 1 = 4
+        self.dec2 = nn.ConvTranspose2d(
+            in_channels=init_channels*4, out_channels=init_channels*2, kernel_size=kernel_size, 
+            stride=2, padding=0
+        )
+        # H = (4-1)*2  + 3 + 1 = 10
+        self.dec3 = nn.ConvTranspose2d(
+            in_channels=init_channels*2, out_channels=image_out_channels, kernel_size=kernel_size+1, 
+            stride=2, padding=1
+        )
+        # H = (10-1)*2 - 2 + 4 + 1 = 21 <--- Final Dim for Viirs 21x21
+
+    def reparameterize(self, mu, log_var):
+        """
+        :param mu: mean from the encoder's latent space
+        :param log_var: log variance from the encoder's latent space
+        """
+        std = torch.exp(0.5*log_var) # standard deviation
+        eps = torch.randn_like(std) # `randn_like` as we need the same size
+        sample = mu + (eps * std) # sampling
+        return sample
+ 
+    def forward(self, x):
+        # encoding
+        x = F.leaky_relu(self.enc1(x))
+        x = F.leaky_relu(self.enc2(x))
+        x = F.leaky_relu(self.enc3(x))
+        x = F.leaky_relu(self.enc4(x))
+        batch, _, _, _ = x.shape
+        x = F.adaptive_avg_pool2d(x, 1).reshape(batch, -1)
+        hidden = self.fc1(x)
+        # get `mu` and `log_var`
+        mu = self.fc_mu(hidden)
+        log_var = self.fc_log_var(hidden)
+        # get the latent vector through reparameterization
+        z = self.reparameterize(mu, log_var)
+        z = self.fc2(z)
+        z = z.view(-1, 64, 1, 1)
+ 
+        # decoding
+        x = F.leaky_relu(self.dec1(z))
+        x = F.leaky_relu(self.dec2(x))
+        # x = F.leaky_relu(self.dec3(x))
+        reconstruction = torch.sigmoid(self.dec3(x))
         return reconstruction, mu, log_var
 
 class ConvVED(object):
@@ -122,11 +209,11 @@ class ConvVED(object):
     kv: float, weight on variance term inside -KL(q(z|x)||p(z)) (default: 1.0)
     """
     def __init__(
-            self, n_components, lr=1.0e-3, batch_size=16,
+            self, n_components, net, lr=1.0e-3, batch_size=16,
             cuda=True, path="conv_ved.pth", kkl=1.0, kv=1.0, init_channels=8, 
             kernel_size=4, image_in_channels=1, image_out_channels=1
         ):
-        self.model = CVEDNet(
+        self.model = net(
             latent_dim=n_components,
             init_channels=init_channels, 
             kernel_size=kernel_size,
