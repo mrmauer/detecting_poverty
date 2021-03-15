@@ -4,9 +4,10 @@ import numpy as np
 import geoio
 from utils import create_space
 import os
-from PIL import Image
+from PIL import Image, ImageFile
 import torchvision.transforms.functional as TF
 
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 class ToTensor(object):
     def __init__(self, bands, height, width):
@@ -90,7 +91,7 @@ class LandsatTransform:
         path = '/'.join([self.base_path, country, image_name])
         img = Image.open(path)
         img = img.resize((self.width, self.height))
-        return TF.pil_to_tensor(img.convert('RGB')).type(torch.FloatTensor)
+        return TF.pil_to_tensor(img.convert('RGB')).type(torch.FloatTensor)/255
 
 class ViirsTransform:
     """
@@ -117,23 +118,26 @@ class ViirsTransform:
 
     def __call__(self, coord, country):
         """
+        Extracts the 21x21 sub-array from the the full VIIRS tile set
+        corresponding to the provided coordinates,
+        and returns a normalized 3D tensor.
+        
+        Normalization:
+            output = ln(input + 1)/ln(max)
+            Where max = 92,000 radiance in our dataset.
+            Maps to [0,1] and reduces outsize influence of outliers.
         Input:
             coord (tuple of 2 floats)
-
+            country (str): One of ['eth', 'mw', 'ng']
         Returns a 3D tensor.
         """
         min_lat, min_lon, max_lat, max_lon = create_space(
             coord[0], coord[1])
         xminPixel, ymaxPixel = self.tifs[country].proj_to_raster(min_lon, min_lat)
-        # xmaxPixel, yminPixel = self.tif.proj_to_raster(max_lon, max_lat)
-        # if (xminPixel<0) or (ymaxPixel-21<0) or \
-        #         (ymaxPixel>self.data.shape[0]) or \
-        #         (xminPixel+21>self.data.shape[1]):
-        #     return False, None
-        xminPixel, ymaxPixel = itn(xminPixel), int(ymaxPixel)
+        xminPixel, ymaxPixel = int(xminPixel), int(ymaxPixel)
         array = self.arrays[country][:, ymaxPixel-21:ymaxPixel, xminPixel:xminPixel+21]
-        return torch.tensor(array.reshape((-1,21,21))).type(torch.FloatTensor)
-
+        viirs_tensor = torch.tensor(array.reshape((-1,21,21))).type(torch.FloatTensor)
+        return torch.log(viirs_tensor + 1) / 11.43
 
 
 
