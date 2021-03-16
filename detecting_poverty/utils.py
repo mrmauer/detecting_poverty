@@ -3,6 +3,32 @@ import numpy as np
 from PIL import Image
 import random
 import math
+import seaborn as sns
+from sklearn import metrics
+import matplotlib.pyplot as plt
+
+def confusion_matrix(Ytrue, Ypred):
+    """
+    Display a color weighted confusion matrix for binary classification.
+    """
+    sns.heatmap(metrics.confusion_matrix(Ytrue, Ypred), annot=True)
+    plt.ylabel("True Label")
+    plt.xlabel("Predicted Label")
+    plt.show()
+
+def roc_auc(model, Xtest, Ytest):
+    """
+    Display the ROC curve.
+    """
+    metrics.plot_roc_curve(model, Xtest, Ytest)  
+    plt.show() 
+
+def precision_recall(model, Xtest, Ytest):
+    """
+    Display the Precision-Recall curve.
+    """
+    metrics.plot_precision_recall_curve(model, Xtest, Ytest)  
+    plt.show() 
 
 class LatLonBBDraw():
     '''

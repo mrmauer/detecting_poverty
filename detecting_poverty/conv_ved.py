@@ -6,9 +6,9 @@ from torch import optim, nn
 from torch.nn import functional as F
 import numpy as np
 import torch
-from numpy.random import permutation as rpm
+# from numpy.random import permutation as rpm
 from data_loaders import MNIST
-from elastic_net import elastic_net
+from predictors import elastic_net, logistic
 
 # the ConvVAE network for 256x256 Landsat images
 class LandsatCvaeNet(nn.Module):
@@ -343,11 +343,13 @@ class ConvVED(object):
         return
 
 def conved_for_prediction(train_data, dev_data, train_target, dev_target,
-            n_components, lr=1.0e-3, batch_size=128,
-            epochs=10, kkl=1.0, kv=1.0, path='ConvVED.pt', verbose=False
+            n_components, lr=1.0e-3, batch_size=128, task='regression',
+            epochs=10, kkl=1.0, kv=1.0, path='ConvVED.pt', verbose=False,
+            scoring='f1'
         ):
     """
-    Train and extract feature with Convolutional VAE
+    Train and extract feature with Convolutional VAE. Pass features to a
+    supervised task where it trains, tunes, and evaluates.
     ------
     Input
         train_subset, dev_subset: tud.Dataset objects for loading data.
@@ -363,10 +365,12 @@ def conved_for_prediction(train_data, dev_data, train_target, dev_target,
             (default: 1.0)
         path: string, path to save trained model (default: "VAE.pt")
     
-    Output
-        train_features, dev_features, test_features: 2d array of shape 
-            (n_data, n_dim), extracted features of the training/dev/test set
+    Returns:
+        
     """
+    if task != 'regression' and task != 'classification':
+        raise ValueError(f"Invalid input for downstream task: {task}\n" +
+                         "Should be one of ['classification', 'regressions']")
     print("\n========================\nUsing Convolutional VED\n"+
           f"{n_components} Components\n" +
           f"{lr} Learning Rate\n" +
@@ -386,12 +390,24 @@ def conved_for_prediction(train_data, dev_data, train_target, dev_target,
     model.fit(train_data, Xd=dev_data, epochs=epochs)
     train_features = model.transform(train_data)
     dev_features = model.transform(dev_data)
-    score, enet = elastic_net(
-        Xtrain=train_features, 
-        Xdev=dev_features, 
-        Ytrain=train_target, 
-        Ydev=dev_target, 
-        verbose=verbose
-    )
-    return score, model, enet
+
+    if task == 'regression':
+        results, downstream_model = elastic_net(
+            Xtrain=train_features, 
+            Xdev=dev_features, 
+            Ytrain=train_target, 
+            Ydev=dev_target, 
+            verbose=verbose
+        )
+    else:
+        results, downstream_model = logistic(
+            Xtrain=train_features, 
+            Xdev=dev_features, 
+            Ytrain=train_target, 
+            Ydev=dev_target, 
+            verbose=verbose,
+            scoring=scoring
+        )
+
+    return results, model, downstream_model
 
