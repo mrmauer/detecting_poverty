@@ -71,7 +71,7 @@ def logistic(Xtrain, Ytrain, Xdev, Ydev, verbose=False, scoring='f1'):
     logit.fit(Xtrain, Ytrain)
     best_score = logit.score(Xdev, Ydev)
     Ydev_pred = logit.predict(Xdev)
-    num_coeff = len(logit.coef_[logit.coef_>0])
+    num_coeff = len(logit.coef_[logit.coef_ !=0 ])
     results = {
         "F1" : best_score,
         "l1_ratio" : logit.l1_ratio_[0],
