@@ -210,7 +210,7 @@ class ConvVED(object):
     kv: float, weight on variance term inside -KL(q(z|x)||p(z)) (default: 1.0)
     """
     def __init__(
-            self, n_components, net, lr=1.0e-3, batch_size=16,
+            self, n_components, net, lr=1.0e-3, batch_size=128,
             cuda=True, path="conv_ved.pth", kkl=1.0, kv=1.0, init_channels=8, 
             kernel_size=4, image_in_channels=1, image_out_channels=1
         ):
@@ -333,7 +333,7 @@ class ConvVED(object):
         return
 
 def conved_for_prediction(train_data, dev_data, train_target, dev_target,
-            n_components, lr=1.0e-3, batch_size=12,
+            n_components, lr=1.0e-3, batch_size=128,
             epochs=10, kkl=1.0, kv=1.0, path='ConvVED.pt', verbose=False
         ):
     """

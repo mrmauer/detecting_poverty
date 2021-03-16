@@ -2,7 +2,7 @@ import numpy as np
 from sklearn.linear_model import ElasticNetCV
 import json
 
-def elastic_net(Xtrain, Ytain, Xdev, Ydev, verbose=False):
+def elastic_net(Xtrain, Ytrain, Xdev, Ydev, verbose=False):
     """
     Trains and Elastic Net Linear Model on the provided. Scores the model 
     and returns both the model and the score. It also prints the optimal
