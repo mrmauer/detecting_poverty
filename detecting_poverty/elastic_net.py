@@ -19,13 +19,17 @@ def elastic_net(Xtrain, Ytrain, Xdev, Ydev, verbose=False):
         ElasticNetCV: the trained model.
     """
     print("\n========================\nTraining Elastic Net\n")
-    enet = ElasticNetCV(l1_ratio=[.1, .5, .7, .9, .95, .99, 1])
+    enet = ElasticNetCV(
+        l1_ratio=[.1, .5, .7, .9, .95, .99, 1],
+        max_iter=1e4,
+        tol=1e-2
+    )
     enet.fit(Xtrain, Ytrain)
     best_score = enet.score(Xdev, Ydev)
     results = {
         "R2" : best_score,
         "alpha" : enet.alpha_,
-        "l1_ratio" : enet.l1ratio_
+        "l1_ratio" : enet.l1_ratio_
     }
     if verbose:
         results['coefficients'] = enet.coef_.tolist()

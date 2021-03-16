@@ -241,10 +241,16 @@ class ConvVED(object):
         """
         train_loader = tud.DataLoader(
             Xr,
-            batch_size=self.batch_size, shuffle=True)
+            batch_size=self.batch_size, 
+            shuffle=True,
+            num_workers=4
+        )
         dev_loader = tud.DataLoader(
             Xd,
-            batch_size=self.batch_size, shuffle=True)
+            batch_size=self.batch_size, 
+            shuffle=True,
+            num_workers=4
+        )
         optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
         best_dev_loss = np.inf
         for epoch in range(1, epochs + 1):
@@ -270,7 +276,11 @@ class ConvVED(object):
         except Exception as err:
             print("Error loading '%s'\n[ERROR]: %s\nUsing initial model!" % (self.path, err))
         test_loader = tud.DataLoader(
-            X, batch_size=self.batch_size, shuffle=False)
+            X, 
+            batch_size=self.batch_size, 
+            shuffle=False,
+            num_workers=4
+        )
         _, Z = self._evaluate(test_loader)
         return Z
 
@@ -377,10 +387,10 @@ def conved_for_prediction(train_data, dev_data, train_target, dev_target,
     train_features = model.transform(train_data)
     dev_features = model.transform(dev_data)
     score, enet = elastic_net(
-        train_features, 
-        dev_features, 
-        train_target, 
-        dev_target, 
+        Xtrain=train_features, 
+        Xdev=dev_features, 
+        Ytrain=train_target, 
+        Ydev=dev_target, 
         verbose=verbose
     )
     return score, model, enet
