@@ -7,6 +7,20 @@ import seaborn as sns
 from sklearn import metrics
 import matplotlib.pyplot as plt
 
+def adjusted_classes(y_scores, threshold):
+    """
+    This function adjusts class predictions based on the prediction threshold (t).
+    Will only work for binary classification problems.
+
+    Inputs:
+        y_scores (1D array): Values between 0 and 1.
+        threshold (float): probability threshold
+
+    Returns:
+        array of 0s and 1s
+    """
+    return (y_scores >= threshold).astype(int)
+
 def confusion_matrix(Ytrue, Ypred):
     """
     Display a color weighted confusion matrix for binary classification.
