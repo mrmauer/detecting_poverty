@@ -24,7 +24,7 @@ def parallel_points_generation():
     workload = N // n_workers
 
     if rank == 0:
-        with open("subsahara_shapes.json", "r") as f:
+        with open("../../data/subsahara_shapes.json", "r") as f:
             subsahara = json.load(f)
             subsahara['shape'] = shape(subsahara['shape'])
     else:

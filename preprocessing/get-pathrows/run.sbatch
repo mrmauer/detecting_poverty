@@ -9,6 +9,8 @@
 module load python/anaconda-2019.03
 module load intelmpi/2018.2.199+intel-18.0
 
+# Install Geopandas and dependencies
+pip install fiona shapely rtree pyproj descartes geopandas
 
 # Run the python program with mpirun, using & to run jobs at the same time
-mpirun -n $i python ./get_pathrows.py 10000
+mpirun -n 4 python ./get_pathrows.py 1000 2> pathrow-error.log

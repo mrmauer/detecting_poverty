@@ -10,7 +10,7 @@ import os
 
 # Use all points data or only a user-input subset
 if len(sys.argv) > 1:
-    N = sys.arv[1]
+    N = int(sys.argv[1])
 else:
     N = 1e6
 
@@ -20,10 +20,10 @@ def download_pathrows():
     If not, download and unzip the files from paladium.
     '''
     # os checks
-    if not os.is_dir("landsat-path-row"):
+    if not os.path.isdir("landsat-path-row"):
         print("Downloading landsat-path-row shapes.")
-        url = "https://prd-wret.s3-us-west-2.amazonaws.com/assets/palladium/" +
-            "production/s3fs-public/atoms/files/WRS2_descending_0.zip"
+        url = "https://prd-wret.s3-us-west-2.amazonaws.com/assets/palladium/"
+        url += "production/s3fs-public/atoms/files/WRS2_descending_0.zip"
         r = urllib.request.urlopen(url)
         zip_file = zipfile.ZipFile(io.BytesIO(r.read()))
         zip_file.extractall("landsat-path-row")
@@ -52,7 +52,7 @@ def parallel_pathrow_matching():
 
         # read in points
         all_points = np.loadtxt(
-            'points.csv',
+            '../generate-points/points.csv',
             skiprows = 1
         )
     else:
