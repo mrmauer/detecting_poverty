@@ -2,6 +2,7 @@ from mpi4py import MPI
 from shapely.geometry import Point
 import sys
 import geopandas as gpd
+import numpy as np
 
 # Use all points data or only a user-input subset
 if len(sys.argv) > 1:
@@ -31,8 +32,9 @@ def parallel_pathrow_matching():
         # read in points
         all_points = np.loadtxt(
             '../generate-points/points.csv',
-            skiprows = 1
-        )
+            skiprows = 1,
+	    delimiter = ','
+        )[:N,:]
     else:
         wrs_subsahara = None
         wrs_rtree = None
