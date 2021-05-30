@@ -13,4 +13,4 @@ module load intelmpi/2018.2.199+intel-18.0
 pip install fiona shapely rtree pyproj descartes geopandas
 
 # Run the python program with mpirun, using & to run jobs at the same time
-mpirun -n 4 python ./get_pathrows.py 1000 2> pathrow-error.log
+mpirun -n 4 python ./match_pathrows.py 1000 2> pathrow-error.log
