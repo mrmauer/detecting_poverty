@@ -33,7 +33,7 @@ def parallel_pathrow_matching():
         all_points = np.loadtxt(
             '../generate-points/points.csv',
             skiprows = 1,
-	    delimiter = ','
+            delimiter = ','
         )[:N,:]
     else:
         wrs_subsahara = None
