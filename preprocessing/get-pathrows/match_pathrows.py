@@ -8,7 +8,7 @@ import numpy as np
 if len(sys.argv) > 1:
     N = int(sys.argv[1])
 else:
-    N = 1e6
+    N = int(1e6)
 
 def parallel_pathrow_matching():
     # Get rank of process and overall size of communicator:
@@ -26,22 +26,29 @@ def parallel_pathrow_matching():
             ['PATH', 'ROW', 'geometry']
             ].copy()
 
-        # create Rtree
-        wrs_rtree = wrs_subsahara.sindex
+        wrs_subsahara.reset_index(inplace=True)
 
         # read in points
+#        if len(sys.argv) > 1:
         all_points = np.loadtxt(
             '../generate-points/points.csv',
             skiprows = 1,
-            delimiter = ','
-        )[:N,:]
+            delimiter = ',',
+            max_rows = N
+        )
+#        else:
+#            all_points = np.loadtxt(
+#                '../generate-points/points.csv',
+#                skiprows = 1,
+#                delimiter = ','
+#            )
     else:
         wrs_subsahara = None
-        wrs_rtree = None
         all_points = None
 
     wrs_subsahara = comm.bcast(wrs_subsahara, root=0)
-    wrs_rtree = comm.bcast(wrs_rtree, root=0)
+
+    wrs_rtree = wrs_subsahara.sindex
 
     points = np.empty((workload, 2))
     comm.Scatter(all_points, points, root=0)
@@ -51,11 +58,12 @@ def parallel_pathrow_matching():
     i = 0
     while i < workload:
         x, y = points[i,:]
-        match = wrs_rtree.query(Point(x,y), predicate='within').item()
-        if match:
-            pathrows[match,:] = wrs_subsahara.PATH[match], wrs_subsahara.ROW[match]
+        match = wrs_rtree.query(Point(x,y), predicate='within')#[0]
+        if len(match) > 0:
+            match = match[0]
+            pathrows[i,:] = wrs_subsahara.PATH[match], wrs_subsahara.ROW[match]
         else:
-            pathrows[match,:] = (-1, -1)
+            pathrows[i,:] = (-1, -1)
         i += 1
 
     pathrows = np.concatenate([points, pathrows], axis=1)
