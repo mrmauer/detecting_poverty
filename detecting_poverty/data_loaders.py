@@ -77,50 +77,6 @@ class LandsatViirs(tud.Dataset):
         viirs = self.viirs_transform((lat, lon), country)
         return landsat, viirs
 
-class LandsatDataset(tud.Subset):
-    """
-    A data loader that samples pairs of Landsat
-    and VIIRS images for matching land areas. 
-    """
-    def __init__(
-            self, df, landsat_transform
-        ):
-        self.df = df
-        self.landsat_transform = landsat_transform
-        self.idxs = df.index.to_list()
-
-    def __len__(self):
-        return len(self.df)
-
-    def __getitem__(self, idx):
-        idx = self.idxs[idx]
-        cols = ['image_lat', 'image_lon', 'image_name', 'country']
-        lat, lon, img, country = self.df.loc[idx, cols]
-        landsat = self.landsat_transform(img, country)
-        return landsat
-
-class ViirsDataset(tud.Subset):
-    """
-    A data loader that samples pairs of Landsat
-    and VIIRS images for matching land areas. 
-    """
-    def __init__(
-            self, df, viirs_transform
-        ):
-        self.df = df
-        self.viirs_transform = viirs_transform
-        self.idxs = df.index.to_list()
-
-    def __len__(self):
-        return len(self.df)
-
-    def __getitem__(self, idx):
-        idx = self.idxs[idx]
-        cols = ['image_lat', 'image_lon', 'image_name', 'country']
-        lat, lon, img, country = self.df.loc[idx, cols]
-        viirs = self.viirs_transform((lat, lon), country)
-        return viirs
-
 class LandsatTransform:
     """
     A callable object that, given a pair of coordinates, returns a the 
@@ -181,9 +137,52 @@ class ViirsTransform:
         xminPixel, ymaxPixel = int(xminPixel), int(ymaxPixel)
         array = self.arrays[country][:, ymaxPixel-21:ymaxPixel, xminPixel:xminPixel+21]
         viirs_tensor = torch.tensor(array.reshape((-1,21,21))).type(torch.FloatTensor)
-        return torch.log(viirs_tensor + 1) / 11.43
+        return torch.clamp(
+            (torch.log(viirs_tensor + 1) / 11.43),
+            min=0, max=1
+        )
 
 
+# DEPRECATE / UNUSED ============================================================
 
+class LandsatDataset(tud.Subset):
+    """
+    """
+    def __init__(
+            self, df, landsat_transform
+        ):
+        self.df = df
+        self.landsat_transform = landsat_transform
+        self.idxs = df.index.to_list()
+
+    def __len__(self):
+        return len(self.df)
+
+    def __getitem__(self, idx):
+        idx = self.idxs[idx]
+        cols = ['image_lat', 'image_lon', 'image_name', 'country']
+        lat, lon, img, country = self.df.loc[idx, cols]
+        landsat = self.landsat_transform(img, country)
+        return landsat
+
+class ViirsDataset(tud.Subset):
+    """
+    """
+    def __init__(
+            self, df, viirs_transform
+        ):
+        self.df = df
+        self.viirs_transform = viirs_transform
+        self.idxs = df.index.to_list()
+
+    def __len__(self):
+        return len(self.df)
+
+    def __getitem__(self, idx):
+        idx = self.idxs[idx]
+        cols = ['image_lat', 'image_lon', 'image_name', 'country']
+        lat, lon, img, country = self.df.loc[idx, cols]
+        viirs = self.viirs_transform((lat, lon), country)
+        return viirs
 
 

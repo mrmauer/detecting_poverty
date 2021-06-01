@@ -1,14 +1,110 @@
-# NEEDS WORK
-    # dimensions of Conv Net running into Errors...
-
+'''
+Unsupervised/Semi-supervised models for poverty detection
+Matt Mauer
+'''
 import torch.utils.data as tud
 from torch import optim, nn
 from torch.nn import functional as F
+from torchvision.models import resnet18
 import numpy as np
 import torch
 # from numpy.random import permutation as rpm
 from data_loaders import MNIST
 from predictors import elastic_net, logistic
+
+class ResnetVAE(nn.Module):
+    '''
+    Uses a pretrained Resnet with 18 layers for encoding Landsat Images
+    to 1000-dimension mean and variance vectors which are then used for 
+    sampling and reconstructing to a matching VIIRS image.
+
+    Requires a batch x 3 x 224 x 224 dimension input for Resnet.
+    '''
+    def __init__(
+        self, latent_dim=64, init_channels=8, pretrained=True,
+        image_in_channels=3, image_out_channels=1
+        ):
+
+        super().__init__()
+
+        kernel_size = 4
+        self.latent_dim = latent_dim
+
+        # encoder
+        self.resnet = resnet18(pretrained=pretrained)
+        self.fc_mu = nn.Linear(1000, latent_dim)
+        self.fc_log_var = nn.Linear(1000, latent_dim)
+
+        # decoder 
+        self.dec1 = nn.ConvTranspose2d(
+            in_channels=latent_dim, out_channels=init_channels*4, kernel_size=kernel_size, 
+            stride=1, padding=0
+        )
+        # H = (1-1)*1 - 0 + 3 + 1 = 4
+        self.dec2 = nn.ConvTranspose2d(
+            in_channels=init_channels*4, out_channels=init_channels*2, kernel_size=kernel_size, 
+            stride=2, padding=0
+        )
+        # H = (4-1)*2  + 3 + 1 = 10
+        self.dec3 = nn.ConvTranspose2d(
+            in_channels=init_channels*2, out_channels=image_out_channels, kernel_size=kernel_size+1, 
+            stride=2, padding=1
+        )
+
+    def reparameterize(self, mu, log_var):
+        """
+        :param mu: mean from the encoder's latent space
+        :param log_var: log variance from the encoder's latent space
+        """
+        std = torch.exp(0.5*log_var) # standard deviation
+        eps = torch.randn_like(std) # `randn_like` as we need the same size
+        sample = mu + (eps * std) # sampling
+        return sample
+ 
+    def forward(self, x, mu_only=False, encode_only=False):
+        '''
+        Performs a forward pass through the ResnetVAE.
+
+        Inputs:
+            x: Tensor (batch, bands, width, height)
+            mu_only: bool, if True short-circuit after encode and 
+                return only mu vector
+            encode_only: bool, if True short-circuit after reparameterization
+                and return 
+
+        Returns: (Tensors)
+            default:
+                reconstruction, mu, log_var
+            mu_only:
+                mu
+            encode_only:
+                z
+        '''
+
+        # encoding
+        x = self.resnet(x)
+
+        # get `mu` and `log_var`
+        mu = self.fc_mu(x)
+        if mu_only:
+            return mu 
+        log_var = self.fc_log_var(x)
+
+        # get the latent vector through reparameterization
+        z = self.reparameterize(mu, log_var)
+
+        if encode_only:
+            return z
+
+        z = z.view(-1, self.latent_dim, 1, 1)
+ 
+        # decoding
+        x = F.leaky_relu(self.dec1(z))
+        x = F.leaky_relu(self.dec2(x))
+        reconstruction = torch.sigmoid(self.dec3(x))
+
+        return reconstruction, mu, log_var
+
 
 # the ConvVAE network for 256x256 Landsat images
 class LandsatCvaeNet(nn.Module):
@@ -217,7 +313,7 @@ class ConvVED(object):
         self.model = net(
             latent_dim=n_components,
             init_channels=init_channels, 
-            kernel_size=kernel_size,
+            # kernel_size=kernel_size,
             image_in_channels=image_in_channels,
             image_out_channels=image_out_channels
         )
@@ -228,7 +324,7 @@ class ConvVED(object):
         self.path = path
         self.kkl = kkl
         self.kv = kv
-        self.initialize()
+        # self.initialize()
 
     def fit(self, Xr, Xd, epochs):
         """Fit ConvVED from data Xr
