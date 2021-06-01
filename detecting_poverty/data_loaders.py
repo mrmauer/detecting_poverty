@@ -8,6 +8,7 @@ from PIL import Image, ImageFile
 import torchvision.transforms.functional as TF
 from collections import defaultdict
 import rasterio
+import pyproj
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
@@ -126,7 +127,7 @@ class LandsatTransform:
         b3.close()
         b4.close()
 
-        return geoio.GeoImage('rgb.tiff')
+        return rgb
 
     def __call__(self, coord, pathrow, img_urls):
         """
@@ -149,101 +150,32 @@ class LandsatTransform:
 
         # Get TIF with 3 bands
         tif = self._get_tif_from_s3(img_urls)
-        tif_data = tif.get_data()
+        tif_data = tif.read()
 
 
-        # Extract 21x21 subarray from landsat scene
+        # Extract 224x224 subarray from landsat scene
         min_lat, min_lon, max_lat, max_lon = create_space(lat, lon)
-        xminPixel, ymaxPixel = tif_data.proj_to_raster(min_lon, min_lat)
-        xminPixel, ymaxPixel = int(xminPixel), int(ymaxPixel)
+        utm = pyproj.Proj(tif.crs)
+        lonlat = pyproj.Proj(init='epsg:4326')
+        east, north = pyproj.transform(lonlat, utm, lon, lat)
+
+        row, col = tif.index(east, north)
 
         # how to reshape tif?
-        array = tif_data[:, ymaxPixel-256:ymaxPixel, xminPixel:xminPixel+256]
+        array = rgb_data[:, row: row+224, col: col+224]
 
         # Convert array to tensor
-        landsat_tensor = torch.tensor(array.reshape((-1,256,256))).type(torch.FloatTensor)
+        landsat_tensor = torch.tensor(array).type(torch.FloatTensor)
 
         # Add tensor to dict
         self._update_dict(pathrow, landsat_tensor)
 
         return landsat_tensor
 
-    # def __call__(self, coord, country):
-    #     """
-    #     Extracts the 21x21 sub-array from the the full VIIRS tile set
-    #     corresponding to the provided coordinates,
-    #     and returns a normalized 3D tensor.
-    #
-    #     Normalization:
-    #         output = ln(input + 1)/ln(max)
-    #         Where max = 92,000 radiance in our dataset.
-    #         Maps to [0,1] and reduces outsize influence of outliers.
-    #     Input:
-    #         coord (tuple of 2 floats)
-    #         country (str): One of ['eth', 'mw', 'ng']
-    #     Returns a 3D tensor.
-    #     """
-    #     min_lat, min_lon, max_lat, max_lon = create_space(
-    #         coord[0], coord[1])
-    #     xminPixel, ymaxPixel = self.tifs[country].proj_to_raster(min_lon, min_lat)
-    #     xminPixel, ymaxPixel = int(xminPixel), int(ymaxPixel)
-    #     array = self.arrays[country][:, ymaxPixel-21:ymaxPixel, xminPixel:xminPixel+21]
-    #     viirs_tensor = torch.tensor(array.reshape((-1,21,21))).type(torch.FloatTensor)
-    #     return torch.log(viirs_tensor + 1) / 11.43
 
-    # def __getitem__(self, idx):
-    #     idx = self.idxs[idx]
-    #     cols = ['image_lat', 'image_lon', 'image_name', 'country']
-    #     lat, lon, img, country = self.df.loc[idx, cols]
-    #     landsat = self.landsat_transform(img, country)
-    #     viirs = self.viirs_transform((lat, lon), country)
-    #     return landsat, viirs
+############################# DEPRECATED #####################################
 
-class LandsatDataset(tud.Subset):
-    """
-    A data loader that samples pairs of Landsat
-    and VIIRS images for matching land areas.
-    """
-    def __init__(
-            self, df, landsat_transform
-        ):
-        self.df = df
-        self.landsat_transform = landsat_transform
-        self.idxs = df.index.to_list()
-
-    def __len__(self):
-        return len(self.df)
-
-    def __getitem__(self, idx):
-        idx = self.idxs[idx]
-        cols = ['image_lat', 'image_lon', 'image_name', 'country']
-        lat, lon, img, country = self.df.loc[idx, cols]
-        landsat = self.landsat_transform(img, country)
-        return landsat
-
-class ViirsDataset(tud.Subset):
-    """
-    A data loader that samples pairs of Landsat
-    and VIIRS images for matching land areas.
-    """
-    def __init__(
-            self, df, viirs_transform
-        ):
-        self.df = df
-        self.viirs_transform = viirs_transform
-        self.idxs = df.index.to_list()
-
-    def __len__(self):
-        return len(self.df)
-
-    def __getitem__(self, idx):
-        idx = self.idxs[idx]
-        cols = ['image_lat', 'image_lon', 'image_name', 'country']
-        lat, lon, img, country = self.df.loc[idx, cols]
-        viirs = self.viirs_transform((lat, lon), country)
-        return viirs
-
-class LandsatTransform:
+class deprecated_LandsatTransform:
     """
     A callable object that, given a pair of coordinates, returns a the
     Landsat image formatted as a 3D Tensor [bands, height, width].
@@ -259,7 +191,7 @@ class LandsatTransform:
         img = img.resize((self.width, self.height))
         return TF.pil_to_tensor(img.convert('RGB')).type(torch.FloatTensor)/255
 
-class ViirsTransform:
+class deprecated_ViirsTransform:
     """
     A callable object that, given a pair of coordinates, returns a the
     VIIIRS Day/Night Band image formatted as a 3D Tensor [bands, height, width].
@@ -304,3 +236,47 @@ class ViirsTransform:
         array = self.arrays[country][:, ymaxPixel-21:ymaxPixel, xminPixel:xminPixel+21]
         viirs_tensor = torch.tensor(array.reshape((-1,21,21))).type(torch.FloatTensor)
         return torch.log(viirs_tensor + 1) / 11.43
+
+class LandsatDataset(tud.Subset):
+    """
+    A data loader that samples pairs of Landsat
+    and VIIRS images for matching land areas.
+    """
+    def __init__(
+            self, df, landsat_transform
+        ):
+        self.df = df
+        self.landsat_transform = landsat_transform
+        self.idxs = df.index.to_list()
+
+    def __len__(self):
+        return len(self.df)
+
+    def __getitem__(self, idx):
+        idx = self.idxs[idx]
+        cols = ['image_lat', 'image_lon', 'image_name', 'country']
+        lat, lon, img, country = self.df.loc[idx, cols]
+        landsat = self.landsat_transform(img, country)
+        return landsat
+
+class ViirsDataset(tud.Subset):
+    """
+    A data loader that samples pairs of Landsat
+    and VIIRS images for matching land areas.
+    """
+    def __init__(
+            self, df, viirs_transform
+        ):
+        self.df = df
+        self.viirs_transform = viirs_transform
+        self.idxs = df.index.to_list()
+
+    def __len__(self):
+        return len(self.df)
+
+    def __getitem__(self, idx):
+        idx = self.idxs[idx]
+        cols = ['image_lat', 'image_lon', 'image_name', 'country']
+        lat, lon, img, country = self.df.loc[idx, cols]
+        viirs = self.viirs_transform((lat, lon), country)
+        return viirs
