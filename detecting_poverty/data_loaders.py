@@ -152,7 +152,6 @@ class LandsatTransform:
         tif = self._get_tif_from_s3(img_urls)
         tif_data = tif.read()
 
-
         # Extract 224x224 subarray from landsat scene
         min_lat, min_lon, max_lat, max_lon = create_space(lat, lon)
         utm = pyproj.Proj(tif.crs)
