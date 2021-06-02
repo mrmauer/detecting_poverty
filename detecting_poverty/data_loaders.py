@@ -230,7 +230,10 @@ class deprecated_ViirsTransform:
         xminPixel, ymaxPixel = int(xminPixel), int(ymaxPixel)
         array = self.arrays[country][:, ymaxPixel-21:ymaxPixel, xminPixel:xminPixel+21]
         viirs_tensor = torch.tensor(array.reshape((-1,21,21))).type(torch.FloatTensor)
-        return torch.log(viirs_tensor + 1) / 11.43
+        return torch.clamp(
+            (torch.log(viirs_tensor + 1) / 11.43),
+            min=0, max=1
+        )
 
 class LandsatDataset(tud.Subset):
     """

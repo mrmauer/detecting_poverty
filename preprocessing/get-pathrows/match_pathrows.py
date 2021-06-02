@@ -28,20 +28,12 @@ def parallel_pathrow_matching():
 
         wrs_subsahara.reset_index(inplace=True)
 
-        # read in points
-#        if len(sys.argv) > 1:
         all_points = np.loadtxt(
             '../generate-points/points.csv',
             skiprows = 1,
             delimiter = ',',
             max_rows = N
         )
-#        else:
-#            all_points = np.loadtxt(
-#                '../generate-points/points.csv',
-#                skiprows = 1,
-#                delimiter = ','
-#            )
     else:
         wrs_subsahara = None
         all_points = None
