@@ -79,7 +79,7 @@ class LandsatViirs(tud.Dataset):
         pathrow = str(path) + str(row)
         landsat = self.landsat_transform((lon, lat), pathrow,
                                          (B2_url, B3_url, B4_url))
-        viirs = self.viirs_transform((lat, lon), country)
+        viirs = self.viirs_transform((lon, lat))
         return landsat, viirs
 
 class LandsatTransform:
@@ -170,6 +170,43 @@ class LandsatTransform:
         self._update_dict(pathrow, landsat_tensor)
 
         return landsat_tensor
+
+class ViirsTransform:
+    """
+    A callable object that, given a pair of coordinates, returns a the
+    VIIIRS Day/Night Band image formatted as a 3D Tensor [bands, height, width].
+    """
+    def __init__(self, tif):
+        """
+        Inputs:
+            tif (geoio.GeoImage)
+        """
+        self.tif = tif
+        self.tif_data = tif.get_data()
+
+    def __call__(self, coord):
+        """
+        Extracts the 21x21 sub-array from the the full VIIRS tile set
+        corresponding to the provided coordinates,
+        and returns a normalized 3D tensor.
+
+        Normalization:
+            output = ln(input + 1)/ln(max)
+            Where max = 92,000 radiance in our dataset.
+            Maps to [0,1] and reduces outsize influence of outliers.
+        Input:
+            coord (tuple of 2 floats)
+        Returns a 3D tensor.
+        """
+        lon, lat = coord
+
+        min_lat, min_lon, max_lat, max_lon = create_space(lat, lon)
+
+        xminPixel, yminPixel = self.tif.proj_to_raster(min_lon, min_lat)
+        xminPixel, yminPixel = int(xminPixel), int(yminPixel)
+        array = self.tif_data[:, xminPixel:xminPixel+21, yminPixel:yminPixel+21]
+        viirs_tensor = torch.tensor(array.reshape((-1,21,21))).type(torch.FloatTensor)
+        return torch.log(viirs_tensor + 1) / 11.43
 
 
 ############################# DEPRECATED #####################################
