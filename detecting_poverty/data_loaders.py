@@ -111,12 +111,12 @@ class LandsatTransform:
         min_lat, min_lon, max_lat, max_lon = create_space(lat, lon)
         utm = pyproj.Proj(tif.crs)
         lonlat = pyproj.Proj(init='epsg:4326')
-        east, north = pyproj.transform(lonlat, utm, lon, lat)
+        east, north = pyproj.transform(lonlat, utm, max_lon, max_lat)
 
         row, col = tif.index(east, north)
 
         # how to reshape tif?
-        array = rgb_data[:, row: row+224, col: col+224]
+        array = rgb_data[:, row-224: row, col-224: col]
 
         # Convert array to tensor
         landsat_tensor = torch.tensor(array).type(torch.FloatTensor)
@@ -158,13 +158,14 @@ class ViirsTransform:
         min_lat, min_lon, max_lat, max_lon = create_space(lat, lon)
         utm = pyproj.Proj(self.tif.crs)
         lonlat = pyproj.Proj(init='epsg:4326')
-        east, north = pyproj.transform(lonlat, utm, lon, lat)
+        east, north = pyproj.transform(lonlat, utm, max_lon, max_lat)
 
         row, col = self.tif.index(east, north)
 
-        array = self.tif_data[:, row:row+21, col:col+21]
+        array = self.tif_data[:, row-21:row, col-21:col]
         viirs_tensor = torch.tensor(array.reshape((-1,21,21))).type(torch.FloatTensor)
-        return torch.log(viirs_tensor + 1) / 11.43
+        
+        return torch.clamp(torch.log(viirs_tensor + 1) / 11.43, min=0, max=1)
 
 
 ############################# DEPRECATED #####################################
