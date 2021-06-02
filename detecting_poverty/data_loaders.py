@@ -1,7 +1,6 @@
 import torch
 import torch.utils.data as tud
 import numpy as np
-import geoio
 from utils import create_space
 import os
 from PIL import Image, ImageFile
@@ -11,50 +10,6 @@ import rasterio
 import pyproj
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
-
-class ToTensor(object):
-    def __init__(self, bands, height, width):
-        self.x = width
-        self.y = height
-        self.z = bands
-
-    def __call__(self, sample):
-        m = torch.from_numpy(sample).type(torch.float).reshape(
-            (self.z, self.y, self.x))
-        return m
-
-class MNIST(tud.Dataset):
-    def __init__(self, X, transform=ToTensor):
-        self.X = X
-        self.transform = transform(1, 28, 28)
-
-    def __len__(self):
-        return len(self.X)
-
-    def __getitem__(self, idx):
-        x = self.X[idx]
-        if self.transform:
-            x = self.transform(x)
-        return (x, x)
-
-class Landsat(tud.Dataset):
-    """
-    A data loader that samples pairs of Landsat images.
-    """
-    def __init__(self, df, landsat_transform):
-        self.df = df
-        self.landsat_transform = landsat_transform
-        self.idxs = df.index.to_list()
-
-    def __len__(self):
-        return len(self.df)
-
-    def __getitem__(self, idx):
-        idx = self.idxs[idx]
-        img, country = self.df.loc[idx, ['image_name', 'country']]
-        landsat = self.landsat_transform(img, country)
-        return landsat, landsat
-
 
 class LandsatViirs(tud.Dataset):
     """
@@ -179,10 +134,10 @@ class ViirsTransform:
     def __init__(self, tif):
         """
         Inputs:
-            tif (geoio.GeoImage)
+            tif
         """
         self.tif = tif
-        self.tif_data = tif.get_data()
+        self.tif_data = tif.read()
 
     def __call__(self, coord):
         """
@@ -201,10 +156,13 @@ class ViirsTransform:
         lon, lat = coord
 
         min_lat, min_lon, max_lat, max_lon = create_space(lat, lon)
+        utm = pyproj.Proj(self.tif.crs)
+        lonlat = pyproj.Proj(init='epsg:4326')
+        east, north = pyproj.transform(lonlat, utm, lon, lat)
 
-        xminPixel, yminPixel = self.tif.proj_to_raster(min_lon, min_lat)
-        xminPixel, yminPixel = int(xminPixel), int(yminPixel)
-        array = self.tif_data[:, xminPixel:xminPixel+21, yminPixel:yminPixel+21]
+        row, col = self.tif.index(east, north)
+
+        array = self.tif_data[:, row:row+21, col:col+21]
         viirs_tensor = torch.tensor(array.reshape((-1,21,21))).type(torch.FloatTensor)
         return torch.log(viirs_tensor + 1) / 11.43
 
@@ -235,7 +193,7 @@ class deprecated_ViirsTransform:
     def __init__(self, tifs):
         """
         Inputs:
-            tif (geoio.GeoImage)
+            tif
         """
         self.tifs = {
             'ng' : tifs[1],
@@ -316,3 +274,46 @@ class ViirsDataset(tud.Subset):
         lat, lon, img, country = self.df.loc[idx, cols]
         viirs = self.viirs_transform((lat, lon), country)
         return viirs
+
+class Landsat(tud.Dataset):
+    """
+    A data loader that samples pairs of Landsat images.
+    """
+    def __init__(self, df, landsat_transform):
+        self.df = df
+        self.landsat_transform = landsat_transform
+        self.idxs = df.index.to_list()
+
+    def __len__(self):
+        return len(self.df)
+
+    def __getitem__(self, idx):
+        idx = self.idxs[idx]
+        img, country = self.df.loc[idx, ['image_name', 'country']]
+        landsat = self.landsat_transform(img, country)
+        return landsat, landsat
+
+class ToTensor(object):
+    def __init__(self, bands, height, width):
+        self.x = width
+        self.y = height
+        self.z = bands
+
+    def __call__(self, sample):
+        m = torch.from_numpy(sample).type(torch.float).reshape(
+            (self.z, self.y, self.x))
+        return m
+
+class MNIST(tud.Dataset):
+    def __init__(self, X, transform=ToTensor):
+        self.X = X
+        self.transform = transform(1, 28, 28)
+
+    def __len__(self):
+        return len(self.X)
+
+    def __getitem__(self, idx):
+        x = self.X[idx]
+        if self.transform:
+            x = self.transform(x)
+        return (x, x)
