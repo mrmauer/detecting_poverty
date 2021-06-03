@@ -9,7 +9,6 @@ from torchvision.models import resnet18
 import numpy as np
 import torch
 # from numpy.random import permutation as rpm
-from data_loaders import MNIST
 from predictors import elastic_net, logistic
 
 class ResnetVAE(nn.Module):

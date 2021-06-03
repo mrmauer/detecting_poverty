@@ -10,7 +10,7 @@ import rasterio
 from rasterio.windows import Window
 import pyproj
 
-ImageFile.LOAD_TRUNCATED_IMAGES = True
+# ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 class LandsatViirs(tud.Dataset):
     """
@@ -28,11 +28,15 @@ class LandsatViirs(tud.Dataset):
     def __len__(self):
         return len(self.df)
 
+    def __zero_pad_pathrow(self, path, row):
+        return ("000" + str(path))[-3:] + ("000" + str(row))[-3:]
+
     def __getitem__(self, idx):
         idx = self.idxs[idx]
         cols = ['# lon', 'lat', 'path', 'row', 'B2_link', 'B3_link', 'B4_link']
         lon, lat, path, row, B2_url, B3_url, B4_url = self.df.loc[idx, cols]
-        pathrow = str(path) + str(row)
+        # 0 pad !!!!            < --------------------------------------------------------v-------
+        pathrow = self.__zero_pad_pathrow(path, row)
         landsat = self.landsat_transform((lon, lat), pathrow,
                                          (B2_url, B3_url, B4_url))
         viirs = self.viirs_transform((lon, lat))
@@ -52,7 +56,7 @@ class LandsatTransform:
         self.xdim = xdim
         self.ydim = ydim
 
-        if not os.isdir('landsat'):
+        if not os.path.isdir('landsat'):
             os.mkdir('landsat')
 
     # def _update_dict(pathrow, img_tensor):
@@ -67,14 +71,14 @@ class LandsatTransform:
     #     """
     #     self.pathrow_imgs[pathrow] = img_tensor
 
-    def _get_tif(img_urls, pathrow):
+    def _get_tif(self, img_urls, pathrow):
         """
         Given a tuple of urls to R, G, and B TIF bands for a single scene,
         return a single TIF
         """
         rgb_path = 'landsat/' + pathrow + '.tiff'
 
-        if os.isfile(rgb_path):
+        if os.path.isfile(rgb_path):
             return rasterio.open(rgb_path)
 
         r_url, g_url, b_url = img_urls
@@ -83,12 +87,15 @@ class LandsatTransform:
         b3 = rasterio.open(g_url)
         b4 = rasterio.open(b_url)
 
-        with rasterio.open(pathrow+'.tiff', 'w', driver='Gtiff', width=b2.width,
+        # with rasterio.open(pathrow+'.tiff', 'w+', driver='Gtiff', width=b2.width,
+        #                     height=b2.height, count=3, crs=b2.crs,
+        #                     tranform=b2.transform, dtype='float32') as rgb:
+        rgb = rasterio.open(pathrow+'.tiff', 'w+', driver='Gtiff', width=b2.width,
                             height=b2.height, count=3, crs=b2.crs,
-                            tranform=b2.transform, dtype='float32') as rgb:
-            rgb.write(b2.read(1), 1)
-            rgb.write(b3.read(1), 2)
-            rgb.write(b4.read(1), 3)
+                            tranform=b2.transform, dtype='float32')
+        rgb.write(b2.read(1), 1)
+        rgb.write(b3.read(1), 2)
+        rgb.write(b4.read(1), 3)
 
         b2.close()
         b3.close()
@@ -110,7 +117,7 @@ class LandsatTransform:
         Returns a 3D tensor.
         """
         r_url, b_url, g_url = img_urls
-        lon, lat = coords
+        lon, lat = coord
 
         # If we already have the 3d tensor, just return it
         if coord in self.coord_imgs:
@@ -175,12 +182,12 @@ class ViirsTransform:
         self.tif = tif
         if subsetBBox:
             (west, south), (east, north) = subsetBBox
-            miny, minx = viirs.index(west, south)
-            maxy, maxx = viirs.index(east, north)
+            miny, minx = tif.index(west, south)
+            maxy, maxx = tif.index(east, north)
             height = abs(maxy - miny)
             width = abs(maxx - minx)
             self.col_offset = minx
-            self.row_off = maxy
+            self.row_offset = maxy
             self.tif_data = tif.read(window=Window(minx, maxy, width, height))
         else:
             self.col_offset = 0
