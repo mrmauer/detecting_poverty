@@ -40,9 +40,9 @@ To improve the ability of our ConvVED model to decode VIIRS images from Landsat 
 
   
 
--   `create_subsaharan-africa-shape.ipynb`: Extract polygon for Sub-Saharan Africa from global shapefile.
+-   `create_subsaharan-africa-shape.ipynb`: Extract polygon for sub-Saharan Africa from global shapefile.
     
--   `generate_points.py`: Using Numba and mpi4py, randomly sample points in parallel from Sub-Saharan Africa polygon and save points to CSV.
+-   `generate_points.py`: Using Numba and mpi4py, randomly sample points in parallel from sub-Saharan Africa polygon and save points to CSV.
     
 -   `generate_points.sh`: Execute `generate_points.py`, generating 1,000,000 total points. (Note that this script is currently being performed on a local machine, but can easily be adapted to be run as a job on the Midway cluster.)
     
@@ -64,7 +64,7 @@ Once we have generated our 1,000,000 points, we must retrieve the Landsat and VI
 
 -   `get_pathrows.py`: Get shapefile containing all path-rows.
     
--   `match_pathrows.py`: Use mpi4py to match 1,000,000 coordinates to pathrows in parallel. To make this process more efficient, we first subset the global path-rows shapefile to include only the path-rows in Sub-Saharan Africa, then construct a [spatial index](https://geopandas.org/docs/reference/sindex.html) from the remaining path-rows. As a result, each matching runs in O(log n) time. We then save the coordinate/path-row mappings to a CSV.
+-   `match_pathrows.py`: Use mpi4py to match 1,000,000 coordinates to pathrows in parallel. To make this process more efficient, we first subset the global path-rows shapefile to include only the path-rows in sub-Saharan Africa, then construct a [spatial index](https://geopandas.org/docs/reference/sindex.html) from the remaining path-rows. As a result, each matching runs in O(log n) time. We then save the coordinate/path-row mappings to a CSV.
     
 -   `run.sbatch`: Run `match_pathrows.py` module using MPI on [AWS ParallelCluster](https://docs.aws.amazon.com/parallelcluster/latest/ug/pcluster.html) (instead of Midway).
     
