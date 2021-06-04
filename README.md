@@ -32,7 +32,7 @@ Note: because much of this repo was developed before this class, below we explic
 
 Large-scale tools: Numba, mpi4py
 
-Contributors: Matt (though Matt and Mike both jointly discussed/agreed on methodology beforehand)
+Contributors: Matt (though Matt and Mike jointly discussed/agreed on methodology beforehand)
 
   
 
