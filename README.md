@@ -110,7 +110,7 @@ To build dataloaders for Landsat images, we open the TIFs for each band (corresp
 
   
 
-To build dataloaders for VIIRS images, we simply hold the TIF for Sub-Saharan Africa in memory, and then extract a 21x21 image from the TIF corresponding the appropriate coordinate pair.
+To build dataloaders for VIIRS images, we simply hold the TIF for Sub-Saharan Africa in memory, and then extract a 21x21 image from the TIF corresponding to the appropriate coordinate pair.
 
   
   
