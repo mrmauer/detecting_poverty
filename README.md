@@ -36,13 +36,13 @@ Contributors: Matt (though Matt and Mike jointly discussed/agreed on methodology
 
   
 
-To improve the ability of our ConvVED model to decode VIIRS images from Landsat images, we first want to train our model on large numbers of VIIRS and Landsat images from many different locations. Because at the present time, our model is focused on detecting poverty in sub-Saharan Africa, we focus solely on this area in our training. This module generates the points for which images will later be extracted and trained on.
+To improve the ability of our ConvVED model to decode VIIRS images from Landsat images, we first want to train our model on large numbers of VIIRS and Landsat images from many different locations. Because at the present time, our model is focused on detecting poverty in Sub-Saharan Africa, we focus solely on this area in our training. This module generates the points for which images will later be extracted and trained on.
 
   
 
--   `create_subsaharan-africa-shape.ipynb`: Extract polygon for sub-Saharan Africa from global shapefile.
+-   `create_subsaharan-africa-shape.ipynb`: Extract polygon for Sub-Saharan Africa from global shapefile.
     
--   `generate_points.py`: Using Numba and mpi4py, randomly sample points in parallel from sub-Saharan Africa polygon and save points to CSV.
+-   `generate_points.py`: Using Numba and mpi4py, randomly sample points in parallel from Sub-Saharan Africa polygon and save points to CSV.
     
 -   `generate_points.sh`: Execute `generate_points.py`, generating 1,000,000 total points. (Note that this script is currently being performed on a local machine, but can easily be adapted to be run as a job on the Midway cluster.)
     
@@ -64,7 +64,7 @@ Once we have generated our 1,000,000 points, we must retrieve the Landsat and VI
 
 -   `get_pathrows.py`: Get shapefile containing all path-rows.
     
--   `match_pathrows.py`: Use mpi4py to match 1,000,000 coordinates to pathrows in parallel. To make this process more efficient, we first subset the global path-rows shapefile to include only the path-rows in sub-Saharan Africa, then construct a [spatial index](https://geopandas.org/docs/reference/sindex.html) from the remaining path-rows. As a result, each matching runs in O(log n) time. We then save the coordinate/path-row mappings to a CSV.
+-   `match_pathrows.py`: Use mpi4py to match 1,000,000 coordinates to pathrows in parallel. To make this process more efficient, we first subset the global path-rows shapefile to include only the path-rows in Sub-Saharan Africa, then construct a [spatial index](https://geopandas.org/docs/reference/sindex.html) from the remaining path-rows. As a result, each matching runs in O(log n) time. We then save the coordinate/path-row mappings to a CSV.
     
 -   `run.sbatch`: Run `match_pathrows.py` module using MPI on [AWS ParallelCluster](https://docs.aws.amazon.com/parallelcluster/latest/ug/pcluster.html) (instead of Midway).
     
@@ -83,7 +83,7 @@ Contributors: Mike
 
   
 
-Now that we have 1,000,000 distinct points in sub-Saharan Africa mapped to their  corresponding path-row, we must generate the links to the TIF files where we can find the appropriate Landsat image corresponding to the path-row. As discussed above, the Landsat scenes are available in a publicly available S3 bucket. This S3 bucket includes a gzipped CSV file that includes metadata on all of the scenes available in the bucket, which is inclusive of the path and row of the scene, the date the scene was taken and processed, and a URL for where the scene can be downloaded.
+Now that we have 1,000,000 distinct points in Sub-Saharan Africa mapped to their  corresponding path-row, we must generate the links to the TIF files where we can find the appropriate Landsat image corresponding to the path-row. As discussed above, the Landsat scenes are available in a publicly available S3 bucket. This S3 bucket includes a gzipped CSV file that includes metadata on all of the scenes available in the bucket, which is inclusive of the path and row of the scene, the date the scene was taken and processed, and a URL for where the scene can be downloaded.
 
   
 
