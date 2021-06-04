@@ -83,7 +83,7 @@ Contributors: Mike
 
   
 
-Now that we have 1,000,000 distinct points in Sub-Saharan Africa mapped to their  corresponding path-row, we must generate the links to the TIF files where we can find the appropriate Landsat image corresponding to the path-row. As discussed above, the Landsat scenes are available in a publicly available S3 bucket. This S3 bucket includes a gzipped CSV file that includes metadata on all of the scenes available in the bucket, which is inclusive of the path and row of the scene, the date the scene was taken and processed, and a URL for where the scene can be downloaded.
+Now that we have 1,000,000 distinct points in sub-Saharan Africa mapped to their  corresponding path-row, we must generate the links to the TIF files where we can find the appropriate Landsat image corresponding to the path-row. As discussed above, the Landsat scenes are available in a publicly available S3 bucket. This S3 bucket includes a gzipped CSV file that includes metadata on all of the scenes available in the bucket, which is inclusive of the path and row of the scene, the date the scene was taken and processed, and a URL for where the scene can be downloaded.
 
   
 
