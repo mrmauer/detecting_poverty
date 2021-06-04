@@ -59,27 +59,21 @@ class LandsatTransform:
         if not os.path.isdir('landsat'):
             os.mkdir('landsat')
 
-    # def _update_dict(pathrow, img_tensor):
-    #     """
-    #     Given a path-row and a 3d tensor representing an image for a single
-    #     pathrow scene (band1_url, band2_url, band3_url), add the path-row and
-    #     tensor as a key-value pair to the pathrow_imgs dictionary
-
-    #     Inputs:
-    #         pathrow (string)
-    #         img_tensor (3d tensor)
-    #     """
-    #     self.pathrow_imgs[pathrow] = img_tensor
-
     def _get_tif(self, img_urls, pathrow):
+        
+        rgb_path = 'landsat/' + pathrow + '.tiff'
+
+        if not os.path.isfile(rgb_path):
+            self._fetch_tif_from_s3(img_urls, pathrow)
+
+        return rgb_path
+
+    def _fetch_tif_from_s3(self, img_urls, pathrow):
         """
         Given a tuple of urls to R, G, and B TIF bands for a single scene,
         return a single TIF
         """
         rgb_path = 'landsat/' + pathrow + '.tiff'
-
-        if os.path.isfile(rgb_path):
-            return rasterio.open(rgb_path)
 
         r_url, g_url, b_url = img_urls
 
@@ -87,22 +81,18 @@ class LandsatTransform:
         b3 = rasterio.open(g_url)
         b4 = rasterio.open(b_url)
 
-        # with rasterio.open(pathrow+'.tiff', 'w+', driver='Gtiff', width=b2.width,
-        #                     height=b2.height, count=3, crs=b2.crs,
-        #                     tranform=b2.transform, dtype='float32') as rgb:
-        rgb = rasterio.open(pathrow+'.tiff', 'w+', driver='Gtiff', width=b2.width,
+        with rasterio.open(rgb_path, 'w+', driver='Gtiff', width=b2.width,
                             height=b2.height, count=3, crs=b2.crs,
-                            tranform=b2.transform, dtype='float32')
-        rgb.write(b2.read(1), 1)
-        rgb.write(b3.read(1), 2)
-        rgb.write(b4.read(1), 3)
+                            tranform=b2.transform, dtype='float32') as rgb:
+            rgb.write(b2.read(1), 1)
+            rgb.write(b3.read(1), 2)
+            rgb.write(b4.read(1), 3)
 
         b2.close()
         b3.close()
         b4.close()
 
-        # self.pathrow_tifs[pathrow] = rgb
-        return rgb
+        return
 
     def __call__(self, coord, pathrow, img_urls):
         """
@@ -122,14 +112,9 @@ class LandsatTransform:
         # If we already have the 3d tensor, just return it
         if coord in self.coord_imgs:
             return self.coord_imgs[coord].new_tensor()
-        # if we already created the RGB tif for the pathrow, use that
-        # elif pathrow in self.pathrow_tifs:
-        #     tif = pathrow_tifs[pathrow]
-        # otherwise create the RGB tif from tifs stored in S3
         else:
             # Get TIF with 3 bands
-            tif = self._get_tif(img_urls, pathrow)
-            # tif_data = tif.read()
+            tif = rasterio.open(self._get_tif(img_urls, pathrow), 'r')
 
         # Extract 224x224 subarray from landsat scene
         min_lat, min_lon, max_lat, max_lon = create_space(lat, lon)
@@ -141,8 +126,6 @@ class LandsatTransform:
         north_idx, west_idx = tif.index(west, north)
         south_idx, east_idx = tif.index(east, south)
 
-        # REPLACE WITH A WINDOW READ !!!!!!!!!
-        # raw_array = rgb_data[:, north_idx:south_idx+1, west_idx:east_idx+1] # <-------------------
         raw_array = tif.read(window=Window(
             west_idx, north_idx, 
             abs(west_idx - east_idx), 
@@ -161,7 +144,6 @@ class LandsatTransform:
         )
 
         # Add tensor to dict
-        # self._update_dict(pathrow, landsat_tensor)
         self.coord_imgs[coord] = landsat_tensor
 
         return landsat_tensor.new_tensor()
